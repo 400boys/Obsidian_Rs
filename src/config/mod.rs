@@ -1,10 +1,34 @@
 pub mod model;
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 pub use model::Config;
 
 pub const DEFAULT_CONFIG_FILE: &str = "config.json";
+
+/// Résout l'emplacement optimal du fichier config.json de manière adaptative sur n'importe quel PC.
+pub fn get_resolved_config_path() -> PathBuf {
+    // 1. À côté du binaire exécutable
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let p = parent.join(DEFAULT_CONFIG_FILE);
+            if p.exists() {
+                return p;
+            }
+        }
+    }
+
+    // 2. Dans ~/.gemini/config/plugins/obsidian-prism/config.json
+    if let Some(home) = dirs::home_dir() {
+        let p = home.join(".gemini").join("config").join("plugins").join("obsidian-prism").join(DEFAULT_CONFIG_FILE);
+        if p.exists() {
+            return p;
+        }
+    }
+
+    // 3. Répertoire courant
+    PathBuf::from(DEFAULT_CONFIG_FILE)
+}
 
 impl Config {
     /// Charge la configuration depuis le fichier donné ou le chemin par défaut.
@@ -20,9 +44,9 @@ impl Config {
         Ok(config)
     }
 
-    /// Charge depuis le fichier config.json dans le répertoire courant ou renvoie la config par défaut.
+    /// Charge la configuration de manière adaptative.
     pub fn load() -> Self {
-        Self::load_from_path(DEFAULT_CONFIG_FILE).unwrap_or_default()
+        Self::load_from_path(get_resolved_config_path()).unwrap_or_default()
     }
 
     /// Enregistre la configuration dans le fichier spécifié avec un formatage élégant.
@@ -35,9 +59,19 @@ impl Config {
         Ok(())
     }
 
-    /// Enregistre dans config.json dans le répertoire courant.
+    /// Enregistre la configuration dans le chemin résolu et synchronise la copie déployée.
     pub fn save(&self) -> Result<(), String> {
-        self.save_to_path(DEFAULT_CONFIG_FILE)
+        let target = get_resolved_config_path();
+        self.save_to_path(&target)?;
+
+        // Synchronisation secondaire si déployé dans .gemini
+        if let Some(home) = dirs::home_dir() {
+            let gemini_cfg = home.join(".gemini").join("config").join("plugins").join("obsidian-prism").join(DEFAULT_CONFIG_FILE);
+            if gemini_cfg != target && gemini_cfg.parent().map(|p| p.exists()).unwrap_or(false) {
+                let _ = self.save_to_path(&gemini_cfg);
+            }
+        }
+        Ok(())
     }
 
     /// Convertit la configuration en JSON compact pour injection dans le navigateur.

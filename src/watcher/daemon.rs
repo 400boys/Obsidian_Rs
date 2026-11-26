@@ -2,9 +2,9 @@
 
 use crate::assets::load_style_css;
 use crate::cdp::{is_port_listening, list_eligible_targets, read_active_port, CdpClient};
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::injector::{self, compiler};
-use crate::watcher::lock::{PidLock, PID_FILE_NAME};
+use crate::watcher::lock::{self, PidLock};
 use colored::*;
 use std::collections::HashSet;
 use std::path::Path;
@@ -12,7 +12,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 pub async fn run_daemon() -> Result<(), String> {
-    let _lock = PidLock::acquire(PID_FILE_NAME)?;
+    let pid_path = lock::get_resolved_pid_path();
+    let _lock = PidLock::acquire(&pid_path)?;
 
     println!("{}", "╔══════════════════════════════════════════════════════════════════════╗".cyan());
     println!("{}", "║      DÉMON DE SURVEILLANCE DU PRISME D'OBSIDIENNE (100% RUST)        ║".cyan().bold());
@@ -24,7 +25,7 @@ pub async fn run_daemon() -> Result<(), String> {
 
     // Initialisation des empreintes
     let css_file = "style.css";
-    let config_file = "config.json";
+    let config_path = config::get_resolved_config_path();
 
     let mut current_config = Config::load();
     let mut last_config_hash = compiler::compute_sha256(&current_config.to_compact_json());
@@ -53,13 +54,13 @@ pub async fn run_daemon() -> Result<(), String> {
                 }
 
                 // 2. Vérification du rechargement à chaud de config.json
-                if Path::new(config_file).exists() {
-                    if let Ok(new_cfg) = Config::load_from_path(config_file) {
+                if config_path.exists() {
+                    if let Ok(new_cfg) = Config::load_from_path(&config_path) {
                         let new_hash = compiler::compute_sha256(&new_cfg.to_compact_json());
                         if new_hash != last_config_hash {
                             last_config_hash = new_hash;
                             current_config = new_cfg;
-                            println!("  {} Modification détectée dans {} -> Diffusion à chaud de la configuration...", "⚡".yellow(), config_file.bold());
+                            println!("  {} Modification détectée dans {:?} -> Diffusion à chaud de la configuration...", "⚡".yellow(), config_path);
                             match injector::broadcast_config_refresh(&current_config).await {
                                 Ok(n) => println!("    {} Configuration actualisée sur {} fenêtre(s).", "✔".green(), n),
                                 Err(e) => eprintln!("    {} Échec de l'actualisation config: {}", "✖".red(), e),

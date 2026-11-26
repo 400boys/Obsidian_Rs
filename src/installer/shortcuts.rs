@@ -145,7 +145,7 @@ foreach ($d in $dirs) {{
         try {{
             $sc = $ws.CreateShortcut($f.FullName)
             $target = [string]$sc.TargetPath
-            if ($target -match '(Antigravity|Code|Cursor|VSCodium)\.exe$') {{
+            if ($target -match '(Antigravity|Code|Cursor|VSCodium)' -and $target -match '\.exe$') {{
                 $matched++
                 $args = [string]$sc.Arguments
                 if ($args -notmatch '--remote-debugging-port') {{

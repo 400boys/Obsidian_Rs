@@ -1,10 +1,25 @@
-// Gestion du fichier de verrouillage (.watch.pid) pour le démon de surveillance
+// Gestion adaptative du fichier de verrouillage (.watch.pid) pour le démon de surveillance
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
 
 pub const PID_FILE_NAME: &str = ".watch.pid";
+
+/// Résout l'emplacement du fichier de verrouillage de manière robuste sur n'importe quel PC.
+pub fn get_resolved_pid_path() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            return parent.join(PID_FILE_NAME);
+        }
+    }
+    if let Some(home) = dirs::home_dir() {
+        let p = home.join(".gemini").join("config").join("plugins").join("obsidian-prism");
+        let _ = std::fs::create_dir_all(&p);
+        return p.join(PID_FILE_NAME);
+    }
+    PathBuf::from(PID_FILE_NAME)
+}
 
 pub struct PidLock {
     path: PathBuf,

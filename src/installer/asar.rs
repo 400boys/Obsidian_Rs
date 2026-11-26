@@ -9,6 +9,9 @@ use std::path::Path;
 pub const PATCH_START_MARKER: &str = "/* __AG_PRISM_START__ */";
 pub const PATCH_END_MARKER: &str = "/* __AG_PRISM_END__ */";
 
+pub const PATCH_MAIN_START_MARKER: &str = "/* __AG_PRISM_MAIN_START__ */";
+pub const PATCH_MAIN_END_MARKER: &str = "/* __AG_PRISM_MAIN_END__ */";
+
 pub struct AsarArchive {
     pub header: Value,
     pub payload: Vec<u8>,
@@ -177,22 +180,84 @@ pub fn strip_marker_block(source: &str, start_marker: &str, end_marker: &str) ->
     out
 }
 
-/// Génère le snippet d'injection pour le preload d'Antigravity.
+/// Génère le snippet d'injection pour le preload d'Antigravity avec robustesse multi-écouteurs et polling.
 pub fn generate_patched_preload(original_preload: &str, inject_code: &str) -> String {
     let clean_base = strip_marker_block(original_preload, PATCH_START_MARKER, PATCH_END_MARKER);
     let clean_trimmed = clean_base.trim_end();
     let code_literal = serde_json::to_string(inject_code).unwrap_or_else(|_| "\"\"".to_string());
 
     format!(
-        "{}\n\n{}\ntry {{\n  const __agPrismCode = {};\n  const __agPrismInjectMainWorld = () => {{\n    try {{\n      const wf =\n        (typeof electron_1 !== 'undefined' && electron_1 && electron_1.webFrame) ||\n        (typeof require === 'function' ? require('electron')?.webFrame : null);\n      if (wf && typeof wf.executeJavaScript === 'function') {{\n        void wf.executeJavaScript(__agPrismCode);\n      }}\n    }} catch (err) {{\n      console.error('[Prisme d\\'Obsidienne] webFrame executeJavaScript error:', err);\n    }}\n  }};\n  if (typeof window !== 'undefined' && typeof document !== 'undefined') {{\n    if (document.readyState === 'loading') {{\n      window.addEventListener('DOMContentLoaded', __agPrismInjectMainWorld, {{ once: true }});\n    }} else {{\n      __agPrismInjectMainWorld();\n    }}\n  }}\n}} catch (err) {{\n  console.error('[Prisme d\\'Obsidienne] Erreur bootstrap preload:', err);\n}}\n{}\n",
-        clean_trimmed,
-        PATCH_START_MARKER,
-        code_literal,
-        PATCH_END_MARKER
+        r#"{clean_trimmed}
+
+{start_marker}
+try {{
+  const __agPrismCode = {code_literal};
+  const __agPrismInjectMainWorld = () => {{
+    try {{
+      const wf =
+        (typeof electron_1 !== 'undefined' && electron_1 && electron_1.webFrame) ||
+        (typeof require === 'function' ? require('electron')?.webFrame : null);
+      if (wf && typeof wf.executeJavaScript === 'function') {{
+        void wf.executeJavaScript(__agPrismCode);
+      }}
+    }} catch (err) {{}}
+  }};
+
+  if (typeof document !== 'undefined') {{
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {{
+      __agPrismInjectMainWorld();
+    }} else {{
+      document.addEventListener('DOMContentLoaded', __agPrismInjectMainWorld, {{ once: true }});
+      if (typeof window !== 'undefined') {{
+        window.addEventListener('DOMContentLoaded', __agPrismInjectMainWorld, {{ once: true }});
+      }}
+    }}
+
+    // Filet de sécurité à plusieurs passages pour garantir l'injection dès que le DOM est prêt
+    let __tries = 0;
+    const __poll = setInterval(() => {{
+      __tries++;
+      if (typeof window !== 'undefined' && window.__agPrism) {{
+        clearInterval(__poll);
+      }} else if (__tries > 35) {{
+        clearInterval(__poll);
+      }} else {{
+        __agPrismInjectMainWorld();
+      }}
+    }}, 200);
+  }}
+}} catch (err) {{}}
+{end_marker}
+"#,
+        clean_trimmed = clean_trimmed,
+        start_marker = PATCH_START_MARKER,
+        code_literal = code_literal,
+        end_marker = PATCH_END_MARKER
     )
 }
 
-/// Applique le patch persistant dans app.asar en 100% Rust.
+/// Génère le snippet pour dist/main.js pour garantir que le port de débogage DevTools (9222) est toujours actif.
+pub fn generate_patched_main(original_main: &str) -> String {
+    let clean_base = strip_marker_block(original_main, PATCH_MAIN_START_MARKER, PATCH_MAIN_END_MARKER);
+    let clean_trimmed = clean_base.trim_start();
+
+    format!(
+        r#"{start_marker}
+try {{
+  const {{ app }} = require('electron');
+  if (app && app.commandLine && !app.commandLine.hasSwitch('remote-debugging-port')) {{
+    app.commandLine.appendSwitch('remote-debugging-port', '9222');
+  }}
+}} catch (e) {{}}
+{end_marker}
+{clean_trimmed}"#,
+        start_marker = PATCH_MAIN_START_MARKER,
+        end_marker = PATCH_MAIN_END_MARKER,
+        clean_trimmed = clean_trimmed
+    )
+}
+
+/// Applique le patch persistant dans app.asar en 100% Rust (preload et main process).
 pub fn patch_asar_file<P: AsRef<Path>>(asar_path: P, inject_code: &str) -> Result<(), String> {
     let p = asar_path.as_ref();
     if !p.exists() {
@@ -208,13 +273,23 @@ pub fn patch_asar_file<P: AsRef<Path>>(asar_path: P, inject_code: &str) -> Resul
         let _ = fs::write(&backup_path, &bytes);
     }
 
-    let preload_bytes = asar.read_file("dist/preload.js")?;
-    let original_preload = String::from_utf8(preload_bytes)
-        .map_err(|e| format!("dist/preload.js n'est pas un texte UTF-8 valide: {}", e))?;
-
-    let patched_preload = generate_patched_preload(&original_preload, inject_code);
     let mut replacements = HashMap::new();
-    replacements.insert("dist/preload.js".to_string(), patched_preload.into_bytes());
+
+    // 1. Patch de dist/preload.js
+    if let Ok(preload_bytes) = asar.read_file("dist/preload.js") {
+        if let Ok(original_preload) = String::from_utf8(preload_bytes) {
+            let patched_preload = generate_patched_preload(&original_preload, inject_code);
+            replacements.insert("dist/preload.js".to_string(), patched_preload.into_bytes());
+        }
+    }
+
+    // 2. Patch de dist/main.js (garantit l'activation du port CDP 9222 quel que soit le mode de lancement)
+    if let Ok(main_bytes) = asar.read_file("dist/main.js") {
+        if let Ok(original_main) = String::from_utf8(main_bytes) {
+            let patched_main = generate_patched_main(&original_main);
+            replacements.insert("dist/main.js".to_string(), patched_main.into_bytes());
+        }
+    }
 
     let repacked_bytes = asar.repack(&replacements)?;
     fs::write(p, repacked_bytes)
@@ -235,21 +310,34 @@ pub fn restore_asar_file<P: AsRef<Path>>(asar_path: P) -> Result<bool, String> {
         return Ok(true);
     }
 
-    // Si pas de fichier .bak, on déplie et retire le marqueur
+    // Si pas de fichier .bak, on déplie et retire les marqueurs
     if p.exists() {
         let bytes = fs::read(p).map_err(|e| format!("Échec de lecture: {}", e))?;
         if let Ok(asar) = AsarArchive::parse(&bytes) {
+            let mut replacements = HashMap::new();
+
             if let Ok(preload_bytes) = asar.read_file("dist/preload.js") {
                 if let Ok(text) = String::from_utf8(preload_bytes) {
                     if text.contains(PATCH_START_MARKER) {
                         let cleaned = strip_marker_block(&text, PATCH_START_MARKER, PATCH_END_MARKER);
-                        let mut replacements = HashMap::new();
                         replacements.insert("dist/preload.js".to_string(), cleaned.into_bytes());
-                        if let Ok(repacked) = asar.repack(&replacements) {
-                            let _ = fs::write(p, repacked);
-                            return Ok(true);
-                        }
                     }
+                }
+            }
+
+            if let Ok(main_bytes) = asar.read_file("dist/main.js") {
+                if let Ok(text) = String::from_utf8(main_bytes) {
+                    if text.contains(PATCH_MAIN_START_MARKER) {
+                        let cleaned = strip_marker_block(&text, PATCH_MAIN_START_MARKER, PATCH_MAIN_END_MARKER);
+                        replacements.insert("dist/main.js".to_string(), cleaned.into_bytes());
+                    }
+                }
+            }
+
+            if !replacements.is_empty() {
+                if let Ok(repacked) = asar.repack(&replacements) {
+                    let _ = fs::write(p, repacked);
+                    return Ok(true);
                 }
             }
         }

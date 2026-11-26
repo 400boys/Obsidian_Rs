@@ -1,5 +1,5 @@
-// Détection et intégration pour l'extension Antigravity dans Visual Studio Code / Cursor / VSCodium
-// Permet à Obsidian_Rs de fonctionner aussi bien dans l'extension VS Code que dans l'IDE autonome.
+// Détection et intégration pour l'extension Antigravity dans Visual Studio Code, Antigravity IDE, Cursor et VSCodium
+// Permet à Obsidian_Rs de fonctionner aussi bien dans l'extension VS Code que dans Antigravity IDE et l'IDE autonome.
 
 use std::fs;
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ pub struct VsCodeExtensionInfo {
     pub is_patched: bool,
 }
 
-/// Recherche tous les répertoires d'extensions VS Code, Cursor et VSCodium sur la machine.
+/// Recherche tous les répertoires d'extensions Antigravity (VS Code, Antigravity IDE, Cursor, VSCodium).
 pub fn find_antigravity_vscode_extensions() -> Vec<VsCodeExtensionInfo> {
     let mut found = Vec::new();
 
@@ -25,6 +25,29 @@ pub fn find_antigravity_vscode_extensions() -> Vec<VsCodeExtensionInfo> {
         ext_roots.push(home.join(".cursor").join("extensions"));
         ext_roots.push(home.join(".vscode-insiders").join("extensions"));
         ext_roots.push(home.join(".vscodium").join("extensions"));
+        ext_roots.push(home.join(".antigravity-ide").join("extensions"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app) = dirs::data_local_dir() {
+            ext_roots.push(local_app.join("Programs").join("Antigravity IDE").join("resources").join("app").join("extensions"));
+            ext_roots.push(local_app.join("Programs").join("antigravity-ide").join("resources").join("app").join("extensions"));
+        }
+        if let Ok(prog_files) = std::env::var("ProgramFiles") {
+            ext_roots.push(PathBuf::from(prog_files).join("Antigravity IDE").join("resources").join("app").join("extensions"));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        ext_roots.push(PathBuf::from("/Applications/Antigravity IDE.app/Contents/Resources/app/extensions"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        ext_roots.push(PathBuf::from("/opt/antigravity-ide/resources/app/extensions"));
+        ext_roots.push(PathBuf::from("/usr/lib/antigravity-ide/resources/app/extensions"));
     }
 
     for root in ext_roots {
@@ -38,7 +61,7 @@ pub fn find_antigravity_vscode_extensions() -> Vec<VsCodeExtensionInfo> {
                 if path.is_dir() {
                     let dir_name = entry.file_name().to_string_lossy().to_string();
                     let dir_lower = dir_name.to_lowercase();
-                    if dir_lower.contains("antigravity") || dir_lower.contains("gemini") {
+                    if dir_lower.contains("antigravity") || dir_lower.contains("gemini") || dir_lower == "agy" {
                         let bridge = path.join("bridge.js");
                         if bridge.exists() {
                             let is_patched = fs::read_to_string(&bridge)
