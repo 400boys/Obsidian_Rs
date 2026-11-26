@@ -1,0 +1,7 @@
+{
+  "name": "obsidian-rs",
+  "displayName": "Obsidian_Rs",
+  "description": "Obsidian_Rs — Version 100% Rust du plugin Antigravity (anciennement Obsidian Prism). Suite Optique & Mouvement pour Google Antigravity.",
+  "version": "1.0.8",
+  "logo": "assets/logo.svg"
+}

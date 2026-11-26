@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "Prisme d'Obsidienne pour Google Antigravity (100% Rust)."
+type: software
+title: "Prisme d'Obsidienne"
+abstract: "Suite Optique & Mouvement pour Google Antigravity en 100% Rust."
+version: 1.0.8
+license: GPL-3.0-only
+keywords:
+  - antigravity
+  - optical-ui
+  - rust
+  - cdp
