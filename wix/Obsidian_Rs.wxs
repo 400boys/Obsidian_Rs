@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Obsidian_Rs"
+           Language="1036"
+           Version="1.0.8"
+           Manufacturer="Edmond NOUMEGNI &lt;&lt; Hacker Éthique &gt;&gt;"
+           UpgradeCode="C3E5F7A9-4D6B-4C8D-9E0F-1A2B3C4D5E6F">
+
+    <Package Id="*"
+             Keywords="Installer,MSI,Antigravity,Obsidian_Rs,Rust"
+             Description="Installateur officiel pour Obsidian_Rs — Suite Optique &amp; Mouvement pour Google Antigravity (100% Rust)"
+             Comments="Développé par Edmond NOUMEGNI &lt;&lt; Hacker Éthique &gt;&gt; (https://portfolio-nine-jade-22.vercel.app/)"
+             Manufacturer="Edmond NOUMEGNI &lt;&lt; Hacker Éthique &gt;&gt;"
+             InstallerVersion="500"
+             Languages="1036"
+             Compressed="yes"
+             SummaryCodepage="1252"
+             InstallScope="perUser"
+             Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="Une version plus récente d'Obsidian_Rs est déjà installée sur ce système." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Icône et métadonnées d'ajout/suppression de programmes -->
+    <Icon Id="ObsidianRsIcon" SourceFile="..\assets\logo.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ObsidianRsIcon" />
+    <Property Id="ARPHELPLINK" Value="https://portfolio-nine-jade-22.vercel.app/" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/400boys/Obsidian_Rs" />
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+
+    <!-- Configuration de l'interface graphique standard WiX -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <WixVariable Id="WixUIBannerBmp" Value="..\assets\installer_banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="..\assets\installer_dialog.bmp" />
+    <UIRef Id="WixUI_InstallDir" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- Arborescence des répertoires -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsFolder" Name="Programs">
+          <Directory Id="INSTALLDIR" Name="Obsidian_Rs">
+            <Directory Id="AssetsDir" Name="assets" />
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <!-- Raccourcis Menu Démarrer -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Obsidian_Rs" />
+      </Directory>
+
+      <!-- Raccourci Bureau -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <!-- Composants de fichiers -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="MainExecutableComponent" Guid="7A1F3B2C-8D4E-4A9B-9C0D-1E2F3A4B5C6D">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs\Components"
+                       Name="MainExecutable"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <File Id="ObsidianRsExe"
+              Name="obsidian_rs.exe"
+              Source="..\target\release\obsidian_rs.exe">
+          <Shortcut Id="DesktopShortcut"
+                    Directory="DesktopFolder"
+                    Name="Obsidian_Rs"
+                    Description="Lancer Obsidian_Rs (Statut &amp; Options)"
+                    WorkingDirectory="INSTALLDIR"
+                    Icon="ObsidianRsIcon"
+                    Advertise="no" />
+          <Shortcut Id="StartMenuShortcut"
+                    Directory="ApplicationProgramsFolder"
+                    Name="Obsidian_Rs"
+                    Description="Lancer Obsidian_Rs (Statut &amp; Options)"
+                    WorkingDirectory="INSTALLDIR"
+                    Icon="ObsidianRsIcon"
+                    Advertise="no" />
+        </File>
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs"
+                       Name="InstallPath"
+                       Type="string"
+                       Value="[INSTALLDIR]" />
+        <RemoveFolder Id="RemoveInstallDir" Directory="INSTALLDIR" On="uninstall" />
+      </Component>
+
+      <Component Id="ConfigFileComponent" Guid="8B2C4D6E-9F0A-4B8C-9D0E-2F3A4B5C6D7E">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs\Components"
+                       Name="ConfigFile"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <File Id="ConfigFile"
+              Name="config.json"
+              Source="..\config.json" />
+      </Component>
+
+      <Component Id="BatScriptsComponent" Guid="9C3D5E7F-0A1B-4C9D-0E1F-3A4B5C6D7E8F">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs\Components"
+                       Name="BatScripts"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <File Id="InstallerBat" Name="installer.bat" Source="..\installer.bat" />
+        <File Id="InjecterBat" Name="injecter.bat" Source="..\injecter.bat" />
+        <File Id="SurveillerBat" Name="surveiller.bat" Source="..\surveiller.bat" />
+        <File Id="DesinstallerBat" Name="desinstaller.bat" Source="..\desinstaller.bat" />
+      </Component>
+
+      <!-- Ajout au PATH utilisateur pour utilisation immédiate dans CMD/PowerShell -->
+      <Component Id="PathEnvComponent" Guid="2F6A8B02-3D4E-4F2A-3B4C-6D7E8F90A1B2">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs"
+                       Name="PathConfigured"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <Environment Id="PATH"
+                     Name="PATH"
+                     Value="[INSTALLDIR]"
+                     Permanent="no"
+                     Part="last"
+                     Action="set"
+                     System="no" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="AssetsDir">
+      <Component Id="AssetsComponent" Guid="0D4E6F80-1B2C-4D0E-1F2A-4B5C6D7E8F90">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs\Components"
+                       Name="Assets"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+        <File Id="LogoSvg" Name="logo.svg" Source="..\assets\logo.svg" />
+        <File Id="LogoIco" Name="logo.ico" Source="..\assets\logo.ico" />
+        <RemoveFolder Id="RemoveAssetsDir" Directory="AssetsDir" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Raccourcis additionnels dans le Menu Démarrer -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ShortcutsComponent" Guid="1E5F7A91-2C3D-4E1F-2A3B-5C6D7E8F90A1">
+        <Shortcut Id="StartWatcherShortcut"
+                  Name="Surveiller Antigravity (Arrière-plan)"
+                  Description="Démarrer le démon de surveillance en arrière-plan"
+                  Target="[INSTALLDIR]obsidian_rs.exe"
+                  Arguments="surveiller -a"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="ObsidianRsIcon" />
+        <Shortcut Id="InjectShortcut"
+                  Name="Injecter dans Antigravity"
+                  Description="Injecter immédiatement Obsidian_Rs dans toutes les fenêtres actives"
+                  Target="[INSTALLDIR]obsidian_rs.exe"
+                  Arguments="injecter"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="ObsidianRsIcon" />
+        <Shortcut Id="UninstallShortcut"
+                  Name="Désinstaller Obsidian_Rs"
+                  Description="Désinstaller complètement Obsidian_Rs et restaurer Antigravity"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+        <RemoveFolder Id="CleanUpShortcutsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\Obsidian_Rs"
+                       Name="ShortcutsInstalled"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Actions personnalisées (Configuration automatique au déploiement et nettoyage à la désinstallation) -->
+    <CustomAction Id="AutoPatchAntigravity"
+                  FileKey="ObsidianRsExe"
+                  ExeCommand="installer"
+                  Execute="deferred"
+                  Return="ignore" />
+
+    <CustomAction Id="AutoRestoreAntigravity"
+                  FileKey="ObsidianRsExe"
+                  ExeCommand="desinstaller"
+                  Execute="deferred"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="AutoRestoreAntigravity" Before="RemoveFiles">REMOVE="ALL"</Custom>
+      <Custom Action="AutoPatchAntigravity" After="InstallFiles">NOT Installed</Custom>
+    </InstallExecuteSequence>
+
+    <!-- Déclaration de la fonctionnalité principale -->
+    <Feature Id="MainFeature" Title="Obsidian_Rs" Level="1">
+      <ComponentRef Id="MainExecutableComponent" />
+      <ComponentRef Id="ConfigFileComponent" />
+      <ComponentRef Id="BatScriptsComponent" />
+      <ComponentRef Id="AssetsComponent" />
+      <ComponentRef Id="PathEnvComponent" />
+      <ComponentRef Id="ShortcutsComponent" />
+    </Feature>
+
+  </Product>
+</Wix>

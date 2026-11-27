@@ -11,6 +11,7 @@ Quatre palettes haute fidélité · Fiole de télémétrie 512K dynamique · Cur
 [**Documentation en Français**](./README.md) · [**Journal des modifications (CHANGELOG)**](./CHANGELOG.md)
 
 <p>
+  <a href="https://github.com/400boys/Obsidian_Rs/releases/latest"><img src="https://img.shields.io/badge/Installateur-Windows%20.MSI-22c55e?style=flat-square&logo=windows" alt="Télécharger l'installateur MSI" /></a>
   <img src="https://img.shields.io/badge/Langage-100%25%20Rust-orange?style=flat-square&logo=rust" alt="100% Rust" />
   <img src="https://img.shields.io/badge/Version-1.0.8-0f172a?style=flat-square" alt="Version 1.0.8" />
   <img src="https://img.shields.io/badge/Plateforme-Windows%20%7C%20macOS%20%7C%20Linux-1e293b?style=flat-square" alt="Plateforme" />
@@ -79,6 +80,26 @@ Positionnées au-dessus de la boîte de dialogue, les mascottes s'animent en tem
 <p align="center">
   <img src="assets/screenshots/companions.webp" width="100%" alt="Mascottes Pixel interactives" />
 </p>
+
+---
+
+## Installation Rapide (Package Windows .MSI)
+
+Le moyen le plus simple d'installer Obsidian_Rs sur Windows est d'utiliser le package installateur officiel disponible dans les **[Releases GitHub](https://github.com/400boys/Obsidian_Rs/releases/latest)** :
+
+- **`Obsidian_Rs-v1.0.8-x64.msi`** : Double-cliquez pour lancer l'assistant d'installation graphique.
+  - Déploie le binaire Rust autonome dans votre dossier utilisateur (`AppData\Local\Programs\Obsidian_Rs`).
+  - Configure automatiquement vos raccourcis Antigravity, Antigravity IDE et VS Code.
+  - Active l'intégration permanente dans `app.asar` et dans vos extensions de développement.
+  - Ajoute `obsidian_rs` à votre variable `PATH` pour une utilisation directe en terminal.
+- **Installation silencieuse (ligne de commande)** :
+  ```powershell
+  msiexec /i Obsidian_Rs-v1.0.8-x64.msi /qn
+  ```
+- **Désinstallation complète** : via le panneau *Applications et fonctionnalités* de Windows ou avec :
+  ```powershell
+  msiexec /x Obsidian_Rs-v1.0.8-x64.msi /qn
+  ```
 
 ---
 
